@@ -15,7 +15,7 @@ AquaLink emits a variety of events to keep you informed about the state of your 
 <CodeGroup>
 
 ```javascript Track Start
-client.aqua.on('trackStart', (player, track) => {
+client.aqua.on(AqualinkEvents.TrackStart, (player, track) => {
     console.log(`Started playing: ${track.title}`);
     
     const embed = {
@@ -23,12 +23,14 @@ client.aqua.on('trackStart', (player, track) => {
         description: `**${track.title}**\nBy ${track.author}`,
         color: 0x00ff00
     };
-    player.textChannel.send({ embeds: [embed] });
+    
+    const channel = client.channels.cache.get(player.textChannel);
+    if (channel) channel.send({ embeds: [embed] });
 });
 ```
 
 ```javascript Track End
-client.aqua.on('trackEnd', (player, track, payload) => {
+client.aqua.on(AqualinkEvents.TrackEnd, (player, track, payload) => {
     console.log(`Track ended: ${track.title} (Reason: ${payload})`);
     
     if (payload.reason === 'FINISHED') {
@@ -40,10 +42,11 @@ client.aqua.on('trackEnd', (player, track, payload) => {
 ```
 
 ```javascript Track Error
-client.aqua.on('trackError', (player, track, payload) => {
+client.aqua.on(AqualinkEvents.TrackError, (player, track, payload) => {
     console.log(`Track error: ${track.title} (Error: ${payload})`);
     
-    player.textChannel.send('❌ An error occurred while playing the track!');
+    const channel = client.channels.cache.get(player.textChannel);
+    if (channel) channel.send('❌ An error occurred while playing the track!');
     
     if (player.queue.length > 0) {
         player.skip();
@@ -52,10 +55,11 @@ client.aqua.on('trackError', (player, track, payload) => {
 ```
 
 ```javascript Track Stuck
-client.aqua.on('trackStuck', (player, error, track) => {
+client.aqua.on(AqualinkEvents.TrackStuck, (player, error, track) => {
     console.log(`Track stuck: ${track.title}`);
     
-    player.textChannel.send('⚠️ Track appears to be stuck, skipping...');
+    const channel = client.channels.cache.get(player.textChannel);
+    if (channel) channel.send('⚠️ Track appears to be stuck, skipping...');
     player.skip();
 });
 ```
@@ -67,7 +71,7 @@ client.aqua.on('trackStuck', (player, error, track) => {
 <CodeGroup>
 
 ```javascript Socket Closed
-client.aqua.on('socketClosed', (player, track, payload) => {
+client.aqua.on(AqualinkEvents.SocketClosed, (player, track, payload) => {
     console.log(`Socket closed: ${payload.code} - ${payload.reason}`);
     
     if (payload.code === 1000) {
@@ -79,7 +83,7 @@ client.aqua.on('socketClosed', (player, track, payload) => {
 ```
 
 ```javascript Player Destroy
-client.aqua.on('playerDestroy', (guildId) => {
+client.aqua.on(AqualinkEvents.PlayerDestroy, (guildId) => {
     console.log(`Player destroyed for guild: ${guildId}`);
 });
 ```
@@ -91,7 +95,7 @@ client.aqua.on('playerDestroy', (guildId) => {
 <CodeGroup>
 
 ```javascript Lyrics Found
-client.aqua.on('lyricsFound', (player, track, payload) => {
+client.aqua.on(AqualinkEvents.LyricsFound, (player, track, payload) => {
     console.log(`Lyrics found for: ${track.title}`);
     
     const embed = {
@@ -99,21 +103,24 @@ client.aqua.on('lyricsFound', (player, track, payload) => {
         description: payload.lyrics.substring(0, 2000), 
         color: 0x9932cc
     };
-    player.textChannel.send({ embeds: [embed] });
+    
+    const channel = client.channels.cache.get(player.textChannel);
+    if (channel) channel.send({ embeds: [embed] });
 });
 ```
 
 ```javascript Lyrics Line
-client.aqua.on('lyricsLine', (player, track, payload) => {
+client.aqua.on(AqualinkEvents.LyricsLine, (player, track, payload) => {
     console.log(`Current lyric line: ${payload.line}`);
 });
 ```
 
 ```javascript Lyrics Not Found
-client.aqua.on('lyricsNotFound', (player, track, payload) => {
+client.aqua.on(AqualinkEvents.LyricsNotFound, (player, track, payload) => {
     console.log(`No lyrics found for: ${track.title}`);
     
-    player.textChannel.send('📝 No lyrics available for this track.');
+    const channel = client.channels.cache.get(player.textChannel);
+    if (channel) channel.send('📝 No lyrics available for this track.');
 });
 ```
 
@@ -122,7 +129,7 @@ client.aqua.on('lyricsNotFound', (player, track, payload) => {
 ### Queue Events
 
 ```javascript Queue End
-client.aqua.on('queueEnd', (player) => {
+client.aqua.on(AqualinkEvents.QueueEnd, (player) => {
     console.log('Queue has ended');
     
     const embed = {
@@ -130,7 +137,9 @@ client.aqua.on('queueEnd', (player) => {
         description: 'The queue has ended. Add more tracks to continue!',
         color: 0xff6b6b
     };
-    player.textChannel.send({ embeds: [embed] });
+    
+    const channel = client.channels.cache.get(player.textChannel);
+    if (channel) channel.send({ embeds: [embed] });
     
     setTimeout(() => {
         if (player.queue.length === 0) {
@@ -147,7 +156,7 @@ client.aqua.on('queueEnd', (player) => {
 <CodeGroup>
 
 ```javascript Node Connect
-client.aqua.on('nodeConnect', (node) => {
+client.aqua.on(AqualinkEvents.NodeConnect, (node) => {
     console.log(`✅ Node ${node.name} connected`);
     console.log(`Node stats: ${node.stats.players} players, ${node.stats.playingPlayers} playing`);
     
@@ -156,7 +165,7 @@ client.aqua.on('nodeConnect', (node) => {
 ```
 
 ```javascript Node Disconnect
-client.aqua.on('nodeDisconnect', (node, reason) => {
+client.aqua.on(AqualinkEvents.NodeDisconnect, (node, reason) => {
     console.log(`❌ Node ${node.name} disconnected: ${reason}`);
     
     if (reason.code === 1006) {
@@ -168,7 +177,7 @@ client.aqua.on('nodeDisconnect', (node, reason) => {
 ```
 
 ```javascript Node Destroy
-client.aqua.on('nodeDestroy', (node) => {
+client.aqua.on(AqualinkEvents.NodeDestroy, (node) => {
     console.log(`🗑️ Node ${node.name} destroyed`);
     
     console.log(`Cleaned up resources for node: ${node.name}`);
@@ -176,7 +185,7 @@ client.aqua.on('nodeDestroy', (node) => {
 ```
 
 ```javascript Node Error
-client.aqua.on('nodeError', (node, error) => {
+client.aqua.on(AqualinkEvents.NodeError, (node, error) => {
     console.error(`❌ Node ${node.name} error:`, error);
     
     console.error(`Error details:`, {
@@ -202,7 +211,7 @@ client.aqua.on('nodeError', (node, error) => {
 ```javascript Complete Status Tracking
 const playerStates = new Map();
 
-client.aqua.on('trackStart', (player, track) => {
+client.aqua.on(AqualinkEvents.TrackStart, (player, track) => {
     playerStates.set(player.guildId, {
         status: 'playing',
         track: track,
@@ -210,7 +219,7 @@ client.aqua.on('trackStart', (player, track) => {
     });
 });
 
-client.aqua.on('trackEnd', (player, track, payload) => {
+client.aqua.on(AqualinkEvents.TrackEnd, (player, track, payload) => {
     const state = playerStates.get(player.guildId);
     if (state) {
         state.status = 'idle';
@@ -219,7 +228,7 @@ client.aqua.on('trackEnd', (player, track, payload) => {
     }
 });
 
-client.aqua.on('playerDestroy', (guildId) => {
+client.aqua.on(AqualinkEvents.PlayerDestroy, (guildId) => {
     playerStates.delete(guildId);
 });
 ```
@@ -229,7 +238,7 @@ client.aqua.on('playerDestroy', (guildId) => {
 ```javascript Auto Skip Bad Tracks
 const errorCounts = new Map();
 
-client.aqua.on('trackError', (player, track, payload) => {
+client.aqua.on(AqualinkEvents.TrackError, (player, track, payload) => {
     const trackId = track.encoded;
     const count = errorCounts.get(trackId) || 0;
     errorCounts.set(trackId, count + 1);
@@ -246,7 +255,7 @@ client.aqua.on('trackError', (player, track, payload) => {
 ### Health Monitoring
 
 ```javascript Node Health Monitor
-client.aqua.on('nodeConnect', (node) => {
+client.aqua.on(AqualinkEvents.NodeConnect, (node) => {
     console.log(`Node ${node.name} online - Health check starting`);
     
     const healthCheck = setInterval(() => {
@@ -263,8 +272,31 @@ client.aqua.on('nodeConnect', (node) => {
     }, 30000); 
 });
 
-client.aqua.on('nodeDisconnect', (node) => {
+client.aqua.on(AqualinkEvents.NodeDisconnect, (node) => {
     console.warn(`🚨 Node ${node.name} went offline! Failover procedures initiated.`);
+});
+```
+
+### Basic Bot Setup
+
+```javascript Essential Events Setup
+client.aqua.on(AqualinkEvents.NodeConnect, (node) => {
+    console.log(`Node connected: ${node.name}`);
+});
+
+client.aqua.on(AqualinkEvents.NodeError, (node, error) => {
+    console.log(`Node "${node.name}" encountered an error: ${error.message}.`);
+});
+
+client.aqua.on(AqualinkEvents.TrackStart, (player, track) => {
+    const channel = client.channels.cache.get(player.textChannel);
+    if (channel) channel.send(`Now playing: **${track.title}**`);
+});
+
+client.aqua.on(AqualinkEvents.QueueEnd, (player) => {
+    const channel = client.channels.cache.get(player.textChannel);
+    if (channel) channel.send('The queue has ended.');
+    player.destroy();
 });
 ```
 
