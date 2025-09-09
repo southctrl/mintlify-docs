@@ -119,20 +119,26 @@ const aqua = new Aqua(client, {
 ### Failover Events
 
 ```javascript
-aqua.on('nodeDisconnected', (node, code, reason) => {
-  console.log(`Node ${node.name} disconnected: ${reason}`);
+const { AqualinkEvents } = require('aqualink');
+
+aqua.on(AqualinkEvents.NodeFailover, (node) => {
+  console.log(`Node ${node.name} is failing over...`);
 });
 
-aqua.on('nodeReconnected', (node) => {
-  console.log(`Node ${node.name} reconnected successfully`);
+aqua.on(AqualinkEvents.NodeFailoverComplete, (node, successful, failed) => {
+  console.log(`Node ${node.name} failover complete. Migrated ${successful} players, ${failed} failed.`);
 });
 
-aqua.on('nodeError', (node, error) => {
+aqua.on(AqualinkEvents.PlayerMigrated, (oldPlayer, newPlayer, newNode) => {
+  console.log(`Player for guild ${oldPlayer.guildId} moved from ${oldPlayer.nodes.name} to ${newNode.name}`);
+});
+
+aqua.on(AqualinkEvents.NodeDisconnect, (node, { code, reason }) => {
+  console.log(`Node ${node.name} disconnected: ${reason} (code: ${code})`);
+});
+
+aqua.on(AqualinkEvents.NodeError, (node, error) => {
   console.error(`Node ${node.name} error:`, error);
-});
-
-aqua.on('playerMoved', (player, oldNode, newNode) => {
-  console.log(`Player moved from ${oldNode.name} to ${newNode.name}`);
 });
 ```
 
@@ -142,7 +148,7 @@ aqua.on('playerMoved', (player, oldNode, newNode) => {
 
 ```javascript
 function getNodeStatus() {
-  const nodes = aqua.nodes;
+  const nodes = aqua.nodeMap;
   const status = {};
   
   for (const [name, node] of nodes) {
@@ -163,7 +169,7 @@ console.log('Node Status:', getNodeStatus());
 
 ```javascript
 function getAvailableNodes() {
-  return Array.from(aqua.nodes.values())
+  return Array.from(aqua.nodeMap.values())
     .filter(node => node.connected)
     .map(node => ({
       name: node.name,
@@ -185,18 +191,18 @@ class PlayerStateManager {
   
   backup(player) {
     const state = {
-      guildId: player.guild,
+      guildId: player.guildId,
       voiceChannel: player.voiceChannel,
       textChannel: player.textChannel,
-      queue: player.queue.tracks,
-      currentTrack: player.queue.current,
+      queue: player.queue.slice(),
+      currentTrack: player.current,
       position: player.position,
       volume: player.volume,
       paused: player.paused,
       timestamp: Date.now()
     };
     
-    this.states.set(player.guild, state);
+    this.states.set(player.guildId, state);
     return state;
   }
   
@@ -205,22 +211,20 @@ class PlayerStateManager {
     
     try {
       if (state.queue && state.queue.length > 0) {
-        for (const track of state.queue) {
-          player.queue.add(track);
-        }
+        player.queue.push(...state.queue);
       }
       
-      if (state.currentTrack && state.preservePosition) {
+      if (state.currentTrack) {
         player.queue.unshift(state.currentTrack);
         player.seek(state.position);
       }
       
-      if (state.volume !== 100) {
+      if (state.volume !== player.volume) {
         player.setVolume(state.volume);
       }
       
       if (state.paused) {
-        player.pause();
+        player.pause(true);
       }
       
       return true;
@@ -246,7 +250,7 @@ async function movePlayerToNode(guildId, targetNodeName) {
     return false;
   }
   
-  const targetNode = aqua.nodes.get(targetNodeName);
+  const targetNode = aqua.nodeMap.get(targetNodeName);
   if (!targetNode || !targetNode.connected) {
     console.log('Target node not available');
     return false;
@@ -278,7 +282,7 @@ async function movePlayerToNode(guildId, targetNodeName) {
 
 ```javascript
 async function checkNodeHealth(nodeName) {
-  const node = aqua.nodes.get(nodeName);
+  const node = aqua.nodeMap.get(nodeName);
   if (!node) {
     return { healthy: false, error: 'Node not found' };
   }
@@ -286,7 +290,7 @@ async function checkNodeHealth(nodeName) {
   return {
     healthy: node.connected,
     players: node.players.size,
-    uptime: node.uptime,
+    uptime: node.stats.uptime,
     stats: node.stats
   };
 }
@@ -294,7 +298,7 @@ async function checkNodeHealth(nodeName) {
 async function checkAllNodesHealth() {
   const results = {};
   
-  for (const [name, node] of aqua.nodes) {
+  for (const [name, node] of aqua.nodeMap) {
     results[name] = await checkNodeHealth(name);
   }
   
@@ -321,12 +325,12 @@ class FailoverMetrics {
   }
   
   setupEventListeners() {
-    aqua.on('nodeDisconnected', (node) => {
+    aqua.on('nodeDisconnect', (node) => {
       this.recordNodeFailure(node.name);
     });
     
-    aqua.on('playerMoved', (player, oldNode, newNode) => {
-      this.recordFailover(true, oldNode.name, newNode.name);
+    aqua.on('playerMigrated', (player, newPlayer, newNode) => {
+      this.recordFailover(true, player.nodes.name, newNode.name);
     });
   }
   
@@ -373,7 +377,7 @@ const metrics = new FailoverMetrics();
 
 ```javascript
 async function simulateNodeFailure(nodeName) {
-  const node = aqua.nodes.get(nodeName);
+  const node = aqua.nodeMap.get(nodeName);
   if (!node) {
     console.log('Node not found');
     return;
@@ -382,11 +386,13 @@ async function simulateNodeFailure(nodeName) {
   console.log(`Simulating failure for node: ${nodeName}`);
   
   const affectedPlayers = Array.from(aqua.players.values())
-    .filter(player => player.node.name === nodeName);
+    .filter(player => player.nodes.name === nodeName);
   
   console.log(`${affectedPlayers.length} players will be affected`);
   
-  node.disconnect();
+  if (node.ws) {
+    node.ws.close(1006, 'Simulating node failure');
+  }
   
   setTimeout(() => {
     console.log('Attempting to reconnect node...');
@@ -427,7 +433,10 @@ async function testFailover() {
 ### Failover Error Recovery
 
 ```javascript
-aqua.on('nodeError', async (node, error) => {
+// Make sure to import AqualinkEvents from your aqualink package
+// const { AqualinkEvents } = require('aqualink');
+
+aqua.on(AqualinkEvents.NodeError, async (node, error) => {
   console.error(`Node ${node.name} encountered error:`, error.message);
   
   if (error.code === 'ECONNREFUSED') {
@@ -472,8 +481,8 @@ const aqua = new Aqua(client, {
 ### Monitoring Setup
 
 ```javascript
-setInterval(() => {
-  const healthReport = checkAllNodesHealth();
+setInterval(async () => {
+  const healthReport = await checkAllNodesHealth();
   const metricsReport = metrics.getReport();
   
   console.log('Health Report:', healthReport);
