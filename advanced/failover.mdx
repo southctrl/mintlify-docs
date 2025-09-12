@@ -16,19 +16,20 @@ const aqua = new Aqua(client, {
     {
       host: 'localhost',
       port: 2333,
-      password: 'youshallnotpass',
-      secure: false,
+      auth: 'youshallnotpass',
+      ssl: false,
       name: 'main-node'
     },
     {
       host: 'backup.server.com',
       port: 2333,
-      password: 'backup_password',
-      secure: false,
+      auth: 'backup_password',
+      ssl: false,
       name: 'backup-node'
     }
   ],
   defaultSearchPlatform: 'ytsearch',
+  nodeResolver: 'LeastLoad'
   shouldDeleteMessage: false,
   leaveOnEnd: true,
   restVersion: 'v4',
@@ -83,22 +84,22 @@ const aqua = new Aqua(client, {
     {
       host: 'primary.server.com',
       port: 2333,
-      password: 'primary_pass',
-      secure: false,
+      auth: 'primary_pass',
+      ssl: false,
       name: 'primary-node'
     },
     {
       host: 'secondary.server.com',
       port: 2333,
-      password: 'secondary_pass',
-      secure: false,
+      auth: 'secondary_pass',
+      ssl: false,
       name: 'secondary-node'
     },
     {
       host: 'tertiary.server.com',
       port: 2333,
-      password: 'tertiary_pass',
-      secure: false,
+      auth: 'tertiary_pass',
+      ssl: false,
       name: 'tertiary-node'
     }
   ],
@@ -463,8 +464,8 @@ async function notifyAdmins(message) {
 ```javascript
 const aqua = new Aqua(client, {
   nodes: [
-    { host: 'primary.domain.com', port: 2333, password: 'pass1', name: 'primary' },
-    { host: 'backup.domain.com', port: 2333, password: 'pass2', name: 'backup' }
+    { host: 'primary.domain.com', port: 2333, auth: 'pass1', name: 'primary', ssl: false },
+    { host: 'backup.domain.com', port: 2333, auth: 'pass2', name: 'backup', ssl: false }
   ],
   failoverOptions: {
     enabled: true,
