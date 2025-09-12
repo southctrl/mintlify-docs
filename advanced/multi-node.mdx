@@ -19,27 +19,30 @@ const aqua = new Aqua(client, [
     {
       host: 'node1.example.com',
       port: 2333,
-      password: 'node1_password',
+      auth: 'node1_password',
+      ssl: false
       name: 'node-1',
       regions: ['us-east'],
     },
     {
       host: 'node2.example.com',
       port: 2333,
-      password: 'node2_password', 
+      auth: 'node2_password', 
+      ssl: false
       name: 'node-2',
       regions: ['us-west'],
     },
     {
       host: 'node3.example.com',
       port: 2333,
-      password: 'node3_password',
+      auth: 'node3_password',
+      ssl: false
       name: 'node-3',
       regions: ['eu-central'],
     }
   ],
   {
-    loadBalancer: 'leastLoad' // Options: 'leastLoad', 'leastRest', 'random' (default: 'leastLoad')
+    nodeResolver: 'leastLoad' // Options: 'leastLoad', 'leastRest', 'random' (default: 'leastLoad')
   }
 );
 ```
@@ -74,15 +77,10 @@ const nodeConfigs = [
   {
     host: 'premium-node.example.com',
     port: 2333,
-    password: 'secure_password',
+    ssl: 'secure_password',
     name: 'premium-1',
     regions: ['us-east-1'],  
     priority: 1,
-    specs: {
-      cpu: 8,
-      memory: '16GB',
-      bandwidth: '1Gbps'
-    }
   }
 ];
 ```
