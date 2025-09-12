@@ -55,7 +55,8 @@ Set up Aqualink and start building music bots with enhanced Lavalink functionali
         nodes: [{
             host: 'localhost',
             port: 2333,
-            password: 'youshallnotpass'
+            auth: 'youshallnotpass',
+            ssl: false
         }]
     });
 
@@ -78,11 +79,12 @@ Set up Aqualink and start building music bots with enhanced Lavalink functionali
       nodes: [{
         host: 'localhost',
         port: 2333,
-        password: 'youshallnotpass',
-        secure: false,
+        auth: 'youshallnotpass',
+        ssl: false,
         name: 'main-node'
       }],
       defaultSearchPlatform: 'ytsearch',
+      nodeResolver: 'LeastLoad'
       shouldDeleteMessage: false,
       leaveOnEnd: true,
       restVersion: 'v4',
